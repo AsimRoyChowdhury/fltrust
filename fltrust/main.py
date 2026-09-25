@@ -41,7 +41,7 @@ def run_experiment(attack, defense):
         num_clients=NUM_CLIENTS,
         config=fl.server.ServerConfig(num_rounds=2000), 
         strategy=strategy,
-        client_resources={"num_cpus": 2, "num_gpus": 0.33},
+        client_resources={"num_cpus": 1, "num_gpus": 0.035},
     )
 
     # Calculate Evaluation Metrics
@@ -55,19 +55,33 @@ def run_experiment(attack, defense):
     
     return f"{ter:.2f}"
 
-def generate_results():
+def generate_table():
     results = {defense: [] for defense in DEFENSES}
+    checkpoint_file = "results.csv"
     
+    # Create the CSV and write headers if it doesn't exist yet
+    if not os.path.exists(checkpoint_file):
+        with open(checkpoint_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Attack", "Defense", "Result"])
+
     for attack in ATTACKS:
         for defense in DEFENSES:
             print(f"Executing: {defense} under {attack}")
             result_metric = run_experiment(attack, defense)
             results[defense].append(result_metric)
             
+            # Instantly append the result to the disk after the round completes
+            with open(checkpoint_file, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([attack, defense, result_metric])
+            print(f"--> Saved checkpoint: {defense} + {attack} = {result_metric}")
+            
+    # Once the entire matrix finishes normally, generate the clean Pandas outputs
     df = pd.DataFrame(results, index=ATTACKS)
     print("\n--- Results ---")
     print(df.to_markdown())
-    df.to_csv("results.csv")
+    df.to_csv("final_results.csv")
 
 if __name__ == "__main__":
     generate_results()
